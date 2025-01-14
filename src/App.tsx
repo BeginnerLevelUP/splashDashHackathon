@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import './App.css';
+import OpenAI from 'openai';
 
 function App() {
-  const [count, setCount] = useState(0)
-  console.log(import.meta.env.VITE_OPENAI_API_KEY)
+  const [response, setResponse] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+
+  useEffect(() => {
+    const getStreamedResponse = async () => {
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: 'gpt-4',
+          messages: [{ role: 'user', content: 'Tell me a story about a dragon.' }],
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            setResponse((prevResponse) => prevResponse + content);
+          }
+        }
+        setIsStreaming(false);
+      } catch (error) {
+        console.error('Error fetching stream:', error);
+        setIsStreaming(false);
+      }
+    };
+
+    if (isStreaming) {
+      getStreamedResponse();
+    } else {
+      setResponse('');
+    }
+  }, [isStreaming,apiKey]);
+
   return (
-    <>
+    <div className="App">
+      <h1>Streaming Response</h1>
+      <button onClick={() => setIsStreaming(!isStreaming)}>
+        {!isStreaming ? "Start Streaming" : "Stop Streaming"}
+      </button>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <p>{response}</p>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p className='bg-red-500 text-white'>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
