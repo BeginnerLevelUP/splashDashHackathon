@@ -1,55 +1,34 @@
-import { useState, useEffect } from 'react';
+// import { useState, useEffect } from 'react';
 import './App.css';
-import OpenAI from 'openai';
+import useResponse from './hooks/useResponse';
+import useUsers from './hooks/useUsers';
 
 function App() {
-  const [response, setResponse] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+const { data: usersData,isLoading:isUsersLoading } = useUsers(10);
+  const {
+    streamedText,
+    isLoading: isResponseLoading
+  } = useResponse(usersData);
 
-  useEffect(() => {
-    const getStreamedResponse = async () => {
-      const openai = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true
-      });
 
-      try {
-        const stream = await openai.chat.completions.create({
-          model: 'gpt-4',
-          messages: [{ role: 'user', content: 'Tell me a story about a dragon.' }],
-          stream: true,
-        });
-
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content;
-          if (content) {
-            setResponse((prevResponse) => prevResponse + content);
-          }
-        }
-        setIsStreaming(false);
-      } catch (error) {
-        console.error('Error fetching stream:', error);
-        setIsStreaming(false);
-      }
-    };
-
-    if (isStreaming) {
-      getStreamedResponse();
-    } else {
-      setResponse('');
-    }
-  }, [isStreaming,apiKey]);
 
   return (
     <div className="App">
       <h1>Streaming Response</h1>
-      <button onClick={() => setIsStreaming(!isStreaming)}>
-        {!isStreaming ? "Start Streaming" : "Stop Streaming"}
-      </button>
+      <h2>Users</h2>
+      {isUsersLoading && <p>Loading...</p>}
       <div>
-        <p>{response}</p>
+        {usersData?.map((user) => (
+          <p key={user.id}>{user.name}</p>
+        ))}
+      <div>
+          <h2>Response</h2>
+          {isResponseLoading && !streamedText && <p>Loading...</p>}
+          <p>
+            {streamedText || 'Waiting for response...'}
+          </p>
       </div>
+    </div>
     </div>
   );
 }
